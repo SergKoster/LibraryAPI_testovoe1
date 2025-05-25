@@ -33,4 +33,12 @@ def test_books():
     assert response.status_code == 200
 
 
+def test_protected_endpoint_requires_token():
+    # Попытка получить защищённый ресурс без токена
+    resp = client.get("/users/")  # любой защищённый роут, например список пользователей
+    assert resp.status_code == 401
+    # Проверяем, что вернулось правильное сообщение
+    assert resp.json()["detail"] == "Could not validate credentials"
+    # И заголовок WWW-Authenticate должен присутствовать
+    assert "WWW-Authenticate" in resp.headers
 
