@@ -17,3 +17,7 @@ class ReaderAlreadyHasThisBook(Exception):
 class ReaderLimit(Exception):
     """Вызывается, когда пользователь уже взял 3 книги."""
     pass
+
+class AlreadyReturned(Exception):
+    """Вызывается, когда пользователь уже вернул эту книгу"""
+    pass

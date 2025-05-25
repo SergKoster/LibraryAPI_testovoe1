@@ -20,6 +20,10 @@ class UpdateBorrow(BaseModel):
     return_date: Optional[datetime] = None
 
 
+class ReturnBorrow(BaseModel):
+    return_date: Optional[datetime] = None
+
+
 # Получение (GET) — response
 class GetBorrow(BaseModel):
     id: int

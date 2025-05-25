@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.schemas.borrows import GetBorrow, CreateBorrow, UpdateBorrow
+from app.schemas.borrows import GetBorrow, CreateBorrow, UpdateBorrow, ReturnBorrow
 from app.crud.borrows import (
-    get_borrows, get_borrow, create_borrow, update_borrow, delete_borrow, 
+    get_borrows, get_borrow, create_borrow, update_borrow, delete_borrow, return_borrow
 )
 from app.core.exceptions import (
-    NotFoundError, NoCopiesAvailable, ReaderAlreadyHasThisBook, ReaderLimit
+    NotFoundError, NoCopiesAvailable, ReaderAlreadyHasThisBook, ReaderLimit, AlreadyReturned
 )
 from app.api.auth import get_current_user
 from app.models.users import User
@@ -60,4 +60,22 @@ def delete_borrow_endpoint(borrow_id: int, db: Session = Depends(get_db), curren
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     
+
+@router.patch(
+    "/{borrow_id}/return",
+    response_model=GetBorrow,
+    status_code=status.HTTP_200_OK
+)
+def return_borrow_endpoint(
+    borrow_id: int,
+    data: ReturnBorrow,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    try:
+        return return_borrow(db, borrow_id, data.return_date)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except AlreadyReturned as e:
+        raise HTTPException(status_code=409, detail=str(e))
 

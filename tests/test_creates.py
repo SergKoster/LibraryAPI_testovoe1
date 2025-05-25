@@ -309,3 +309,66 @@ def test_borrow_everything(auth_token):
     assert "no copies" in resp_nocopies.text.lower() or "no copies" in resp_nocopies.json()["detail"].lower()
 
 
+# Тест возврата книги 
+def test_return_borrow_and_double_return(auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
+
+    # 1. Создаём читателя
+    reader_data = {
+        "name": "Return Reader",
+        "email": "return.reader@example.com"
+    }
+    r_resp = client.post("/readers/", json=reader_data, headers=headers)
+    assert r_resp.status_code == 201, r_resp.text
+    reader_id = r_resp.json()["id"]
+
+    # 2. Создаём книгу с одной копией
+    book_data = {
+        "title": "Returnable Book",
+        "author": "Author Return",
+        "copies": 1,
+        "isbn": "RETURN-ISBN-1"
+    }
+    b_resp = client.post("/books/", json=book_data, headers=headers)
+    assert b_resp.status_code == 201, b_resp.text
+    book = b_resp.json()
+    book_id = book["id"]
+    assert book["copies"] == 1
+
+    # 3. Делаем borrow (copies уменьшится)
+    borrow_data = {"book_id": book_id, "reader_id": reader_id}
+    borrow_resp = client.post("/borrows/", json=borrow_data, headers=headers)
+    assert borrow_resp.status_code == 201, borrow_resp.text
+    borrow = borrow_resp.json()
+    borrow_id = borrow["id"]
+
+    # Проверяем, что copies стало 0
+    b_after_borrow = client.get(f"/books/{book_id}", headers=headers)
+    assert b_after_borrow.status_code == 200
+    assert b_after_borrow.json()["copies"] == 0
+
+    # 4. Возвращаем книгу
+    return_resp = client.patch(
+        f"/borrows/{borrow_id}/return",
+        json={},  # пустой, вернёт текущую дату
+        headers=headers
+    )
+    assert return_resp.status_code == 200, return_resp.text
+    returned = return_resp.json()
+    assert returned["return_date"] is not None
+
+    # После возврата copies должно стать 1 снова
+    b_after_return = client.get(f"/books/{book_id}", headers=headers)
+    assert b_after_return.status_code == 200
+    assert b_after_return.json()["copies"] == 1
+
+    # 5. Пробуем вернуть ещё раз — получаем 409 Conflict
+    second_return = client.patch(
+        f"/borrows/{borrow_id}/return",
+        json={},
+        headers=headers
+    )
+    assert second_return.status_code == 409, second_return.text
+    # деталь ошибки Optional: 
+    # assert "already returned" in second_return.json()["detail"].lower()
+

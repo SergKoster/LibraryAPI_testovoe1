@@ -7,7 +7,7 @@ from app.models.books import Book
 from app.models.readers import Reader
 from app.models.borrows import Borrow
 from app.schemas.borrows import UpdateBorrow, GetBorrow, CreateBorrow
-from app.core.exceptions import NotFoundError, ReaderAlreadyHasThisBook, NoCopiesAvailable, ReaderLimit
+from app.core.exceptions import NotFoundError, ReaderAlreadyHasThisBook, NoCopiesAvailable, ReaderLimit, AlreadyReturned
 
 
 def get_borrows(session: Session):
@@ -92,6 +92,21 @@ def get_active_books_by_reader(session: Session, reader_id: int):
     return result
 
 
+def return_borrow(session: Session, borrow_id: int, return_date: datetime = None):
+    borrow = session.get(Borrow, borrow_id)
+    if borrow is None:
+        raise NotFoundError("Borrow not found")
+    if borrow.return_date is not None:
+        raise AlreadyReturned("Book already returned")
+    borrow.return_date = return_date or datetime.now(timezone.utc)
+    book = session.get(Book, borrow.book_id)
+    if book:
+        book.copies += 1
+    session.commit()
+    session.refresh(borrow)
+    return borrow
+
+
 # Бизнес логика 
 
 
@@ -124,3 +139,5 @@ def is_book_available(session: Session, book_id: int) -> bool:
     (кол-во на складе больше 0)"""
     book = session.get(Book, book_id)
     return book is not None and book.copies > 0
+
+
